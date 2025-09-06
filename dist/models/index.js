@@ -1,0 +1,22 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Settings = exports.Reminder = exports.Order = exports.Appointment = exports.StockMovement = exports.Product = exports.Service = exports.Customer = exports.User = void 0;
+var User_1 = require("./User");
+Object.defineProperty(exports, "User", { enumerable: true, get: function () { return User_1.User; } });
+var Customer_1 = require("./Customer");
+Object.defineProperty(exports, "Customer", { enumerable: true, get: function () { return Customer_1.Customer; } });
+var Service_1 = require("./Service");
+Object.defineProperty(exports, "Service", { enumerable: true, get: function () { return Service_1.Service; } });
+var Product_1 = require("./Product");
+Object.defineProperty(exports, "Product", { enumerable: true, get: function () { return Product_1.Product; } });
+var StockMovement_1 = require("./StockMovement");
+Object.defineProperty(exports, "StockMovement", { enumerable: true, get: function () { return StockMovement_1.StockMovement; } });
+var Appointment_1 = require("./Appointment");
+Object.defineProperty(exports, "Appointment", { enumerable: true, get: function () { return Appointment_1.Appointment; } });
+var Order_1 = require("./Order");
+Object.defineProperty(exports, "Order", { enumerable: true, get: function () { return Order_1.Order; } });
+var Reminder_1 = require("./Reminder");
+Object.defineProperty(exports, "Reminder", { enumerable: true, get: function () { return Reminder_1.Reminder; } });
+var Settings_1 = require("./Settings");
+Object.defineProperty(exports, "Settings", { enumerable: true, get: function () { return Settings_1.Settings; } });
+//# sourceMappingURL=index.js.map
