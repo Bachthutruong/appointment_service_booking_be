@@ -42,16 +42,14 @@ app.use(compression());
 
 // Rate limiting removed as requested
 
-// CORS configuration
+// CORS configuration - Allow all domains
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-production-domain.com'] 
-    : ['http://localhost:3000', 'http://localhost:5173'],
+  origin: true, // Allow all origins
   credentials: true
 }));
 
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '10mb' }));git 
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve uploaded files

@@ -38,11 +38,9 @@ if (!fs_1.default.existsSync(uploadsDir)) {
 app.use((0, helmet_1.default)());
 app.use((0, compression_1.default)());
 // Rate limiting removed as requested
-// CORS configuration
+// CORS configuration - Allow all domains
 app.use((0, cors_1.default)({
-    origin: process.env.NODE_ENV === 'production'
-        ? ['https://your-production-domain.com']
-        : ['http://localhost:3000', 'http://localhost:5173'],
+    origin: true, // Allow all origins
     credentials: true
 }));
 // Body parsing middleware
