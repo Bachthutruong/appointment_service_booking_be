@@ -17,9 +17,15 @@ exports.getReminders = (0, errorHandler_1.asyncHandler)(async (req, res) => {
         if (endDate)
             query.reminderDate.$lte = new Date(endDate);
     }
-    // Status filter
+    // Status filter (support multi-status comma separated)
     if (status && status !== 'all') {
-        query.status = status;
+        const s = String(status);
+        if (s.includes(',')) {
+            query.status = { $in: s.split(',').map(v => v.trim()).filter(Boolean) };
+        }
+        else {
+            query.status = s;
+        }
     }
     // Customer filter
     if (customerId) {
