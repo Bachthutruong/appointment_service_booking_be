@@ -7,5 +7,6 @@ export declare const createProduct: (req: import("express").Request, res: Respon
 export declare const updateProduct: (req: import("express").Request, res: Response, next: import("express").NextFunction) => void;
 export declare const addStock: (req: import("express").Request, res: Response, next: import("express").NextFunction) => void;
 export declare const adjustStock: (req: import("express").Request, res: Response, next: import("express").NextFunction) => void;
+export declare const getProductStats: (req: import("express").Request, res: Response, next: import("express").NextFunction) => void;
 export declare const deleteProduct: (req: import("express").Request, res: Response, next: import("express").NextFunction) => void;
 //# sourceMappingURL=productController.d.ts.map

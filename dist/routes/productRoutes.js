@@ -10,6 +10,7 @@ router.get('/', productController_1.getProducts);
 router.get('/stock-movements', productController_1.getAllStockMovements);
 router.get('/:id', productController_1.getProduct);
 router.get('/:id/stock-history', productController_1.getProductStockHistory);
+router.get('/:id/stats', productController_1.getProductStats);
 router.post('/', auth_1.adminOnly, productController_1.createProduct);
 router.put('/:id', auth_1.adminOnly, productController_1.updateProduct);
 router.post('/:id/stock/add', auth_1.adminOnly, productController_1.addStock);

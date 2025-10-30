@@ -217,6 +217,13 @@ exports.createOrder = (0, errorHandler_1.asyncHandler)(async (req, res) => {
             if (product) {
                 product.currentStock = Math.max(0, product.currentStock - item.quantity);
                 await product.save();
+                if (product.currentStock === 0) {
+                    if (product.isActive)
+                        product.isActive = false;
+                    if (!product.isDiscontinued)
+                        product.isDiscontinued = true;
+                    await product.save();
+                }
                 // Create stock movement
                 await StockMovement_1.StockMovement.create({
                     product: item.item,
@@ -312,6 +319,13 @@ exports.updateOrder = (0, errorHandler_1.asyncHandler)(async (req, res) => {
             if (product) {
                 product.currentStock = Math.max(0, product.currentStock - item.quantity);
                 await product.save();
+                if (product.currentStock === 0) {
+                    if (product.isActive)
+                        product.isActive = false;
+                    if (!product.isDiscontinued)
+                        product.isDiscontinued = true;
+                    await product.save();
+                }
                 // Create stock movement
                 await StockMovement_1.StockMovement.create({
                     product: item.item,

@@ -23,6 +23,7 @@ const reminderRoutes_1 = __importDefault(require("./routes/reminderRoutes"));
 const reportRoutes_1 = __importDefault(require("./routes/reportRoutes"));
 const categoryRoutes_1 = __importDefault(require("./routes/categoryRoutes"));
 const settingsRoutes_1 = __importDefault(require("./routes/settingsRoutes"));
+const reminderTemplateRoutes_1 = __importDefault(require("./routes/reminderTemplateRoutes"));
 // Load environment variables
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -59,6 +60,7 @@ app.use('/api/reminders', reminderRoutes_1.default);
 app.use('/api/reports', reportRoutes_1.default);
 app.use('/api/categories', categoryRoutes_1.default);
 app.use('/api/settings', settingsRoutes_1.default);
+app.use('/api/reminder-templates', reminderTemplateRoutes_1.default);
 // Health check endpoint
 app.get('/api/health', (req, res) => {
     res.json({
