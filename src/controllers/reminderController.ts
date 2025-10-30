@@ -25,9 +25,14 @@ export const getReminders = asyncHandler(async (req: AuthRequest, res: Response)
     if (endDate) query.reminderDate.$lte = new Date(endDate as string);
   }
   
-  // Status filter
+  // Status filter (support multi-status comma separated)
   if (status && status !== 'all') {
-    query.status = status;
+    const s = String(status)
+    if (s.includes(',')) {
+      query.status = { $in: s.split(',').map(v => v.trim()).filter(Boolean) };
+    } else {
+      query.status = s;
+    }
   }
   
   // Customer filter

@@ -319,18 +319,7 @@ export const updateOrder = asyncHandler(async (req: AuthRequest, res: Response) 
     return res.status(403).json({ message: 'Employees cannot update orders' });
   }
 
-  // Revert previous stock movements
-  for (const item of existingOrder.items) {
-    if (item.type === 'product') {
-      const product = await Product.findById(item.item);
-      if (product) {
-        product.currentStock += item.quantity;
-        await product.save();
-      }
-    }
-  }
-
-  // Delete previous stock movements
+  // Delete previous stock movements for this order; we'll write delta movements below
   await StockMovement.deleteMany({ orderId: req.params.id });
 
   // Calculate new totals
@@ -377,29 +366,64 @@ export const updateOrder = asyncHandler(async (req: AuthRequest, res: Response) 
     { new: true, runValidators: true }
   );
 
-  // Update product stock and create new stock movements
-  for (const item of processedItems) {
-    if (item.type === 'product') {
-      const product = await Product.findById(item.item);
-      if (product) {
-        product.currentStock = Math.max(0, product.currentStock - item.quantity);
-        await product.save();
-        if (product.currentStock === 0) {
-          if (product.isActive) product.isActive = false;
-          if (!product.isDiscontinued) product.isDiscontinued = true;
-          await product.save();
-        }
+  // Compute delta per product and adjust stock accordingly, then write delta stock movements
+  const oldQtyByProduct: Record<string, number> = {};
+  for (const it of existingOrder.items) {
+    if (it.type === 'product') {
+      const key = String(it.item);
+      oldQtyByProduct[key] = (oldQtyByProduct[key] || 0) + (it.quantity || 0);
+    }
+  }
 
-        // Create stock movement
-        await StockMovement.create({
-          product: item.item,
-          type: 'out',
-          quantity: -item.quantity,
-          reason: 'Sale (Updated)',
-          orderId: updatedOrder!._id,
-          createdBy: req.user!._id
-        });
-      }
+  const newQtyByProduct: Record<string, number> = {};
+  for (const it of processedItems) {
+    if (it.type === 'product') {
+      const key = String(it.item);
+      newQtyByProduct[key] = (newQtyByProduct[key] || 0) + (it.quantity || 0);
+    }
+  }
+
+  const affectedProductIds = new Set<string>([...Object.keys(oldQtyByProduct), ...Object.keys(newQtyByProduct)]);
+
+  for (const productId of affectedProductIds) {
+    const oldQty = oldQtyByProduct[productId] || 0;
+    const newQty = newQtyByProduct[productId] || 0;
+    const delta = newQty - oldQty; // positive means more items consumed, negative means return to stock
+    if (delta === 0) continue;
+
+    const product = await Product.findById(productId);
+    if (!product) continue;
+
+    // Adjust stock by delta
+    const nextStock = product.currentStock - delta;
+    product.currentStock = Math.max(0, nextStock);
+    await product.save();
+    if (product.currentStock === 0) {
+      if (product.isActive) product.isActive = false;
+      if (!product.isDiscontinued) product.isDiscontinued = true;
+      await product.save();
+    }
+
+    // Record delta stock movement
+    if (delta > 0) {
+      await StockMovement.create({
+        product: productId,
+        type: 'out',
+        quantity: -delta,
+        reason: 'Sale (Updated)',
+        orderId: updatedOrder!._id,
+        createdBy: req.user!._id
+      });
+    } else {
+      const returned = -delta;
+      await StockMovement.create({
+        product: productId,
+        type: 'in',
+        quantity: returned,
+        reason: 'Order quantity reduced (Updated)',
+        orderId: updatedOrder!._id,
+        createdBy: req.user!._id
+      });
     }
   }
 
@@ -460,19 +484,24 @@ export const deleteOrder = asyncHandler(async (req: AuthRequest, res: Response) 
     return res.status(404).json({ message: 'Order not found' });
   }
 
-  // Revert stock movements
+  // Revert stock and record restoration movements (keep history)
   for (const item of order.items) {
     if (item.type === 'product') {
       const product = await Product.findById(item.item);
       if (product) {
         product.currentStock += item.quantity;
         await product.save();
+        await StockMovement.create({
+          product: item.item,
+          type: 'in',
+          quantity: item.quantity,
+          reason: 'Order deleted',
+          orderId: order._id,
+          createdBy: req.user!._id
+        });
       }
     }
   }
-
-  // Delete stock movements
-  await StockMovement.deleteMany({ orderId: req.params.id });
 
   // Update appointment if linked
   if (order.appointmentId) {
@@ -499,6 +528,29 @@ export const updateOrderStatus = asyncHandler(async (req: AuthRequest, res: Resp
   const order = await Order.findById(req.params.id);
   if (!order) {
     return res.status(404).json({ message: 'Order not found' });
+  }
+
+  // If transitioning to cancelled, restore stock and record movements
+  const isCancelling = status === 'cancelled';
+  const wasCancelled = order.status === 'cancelled';
+  if (isCancelling && !wasCancelled) {
+    for (const item of order.items) {
+      if (item.type === 'product') {
+        const product = await Product.findById(item.item);
+        if (product) {
+          product.currentStock += item.quantity;
+          await product.save();
+          await StockMovement.create({
+            product: item.item,
+            type: 'in',
+            quantity: item.quantity,
+            reason: 'Order cancelled',
+            orderId: order._id,
+            createdBy: req.user!._id
+          });
+        }
+      }
+    }
   }
 
   order.status = status;
