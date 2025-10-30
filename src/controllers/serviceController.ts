@@ -1,5 +1,8 @@
 import { Response } from 'express';
 import { Service } from '../models/Service';
+import mongoose from 'mongoose';
+import { Appointment } from '../models/Appointment';
+import { Order } from '../models/Order';
 import { AuthRequest } from '../middleware/auth';
 import { asyncHandler } from '../middleware/errorHandler';
 
@@ -92,6 +95,76 @@ export const deleteService = asyncHandler(async (req: AuthRequest, res: Response
   res.json({
     success: true,
     message: 'Service deleted successfully'
+  });
+});
+
+// @desc    Get service statistics (bookings, revenue, rating) within a period
+// @route   GET /api/services/:id/stats?mode=this_month|custom&month=MM&year=YYYY&startDate&endDate
+// @access  Private
+export const getServiceStats = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  const { mode = 'this_month', month, year, startDate, endDate } = req.query as Record<string, string>;
+
+  // Validate service exists
+  const exists = await Service.exists({ _id: id });
+  if (!exists) return res.status(404).json({ message: 'Service not found' });
+
+  // Resolve time range
+  let rangeStart: Date | undefined;
+  let rangeEnd: Date | undefined;
+
+  if (startDate || endDate) {
+    rangeStart = startDate ? new Date(startDate) : undefined;
+    rangeEnd = endDate ? new Date(endDate) : undefined;
+  } else if (mode === 'custom' && month && year) {
+    const y = Number(year);
+    const m = Number(month) - 1; // JS month 0-11
+    rangeStart = new Date(y, m, 1, 0, 0, 0, 0);
+    rangeEnd = new Date(y, m + 1, 0, 23, 59, 59, 999);
+  } else {
+    // default: this month
+    const now = new Date();
+    rangeStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    rangeEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  }
+
+  const createdAtMatch: any = {};
+  if (rangeStart) createdAtMatch.$gte = rangeStart;
+  if (rangeEnd) createdAtMatch.$lte = rangeEnd;
+
+  // Bookings count from appointments
+  const apptMatch: any = { service: new mongoose.Types.ObjectId(id) };
+  if (rangeStart || rangeEnd) apptMatch.startTime = { ...createdAtMatch };
+  const totalBookings = await Appointment.countDocuments({
+    ...apptMatch,
+    status: { $in: ['booked', 'completed'] }
+  });
+
+  // Revenue from orders containing this service
+  const revenueAgg = await Order.aggregate([
+    ...(rangeStart || rangeEnd ? [{ $match: { createdAt: createdAtMatch } }] : []),
+    { $unwind: '$items' },
+    { $match: { 'items.type': 'service', 'items.item': new mongoose.Types.ObjectId(id) } },
+    {
+      $group: {
+        _id: null,
+        totalRevenue: { $sum: '$items.totalPrice' },
+        itemCount: { $sum: '$items.quantity' }
+      }
+    }
+  ]);
+
+  // Placeholder rating (not implemented)
+  const averageRating = 0;
+
+  res.json({
+    success: true,
+    stats: {
+      totalBookings,
+      totalRevenue: revenueAgg[0]?.totalRevenue || 0,
+      averageRating
+    },
+    range: { start: rangeStart, end: rangeEnd }
   });
 });
 

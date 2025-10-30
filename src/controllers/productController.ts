@@ -3,12 +3,14 @@ import { Product } from '../models/Product';
 import { StockMovement } from '../models/StockMovement';
 import { AuthRequest } from '../middleware/auth';
 import { asyncHandler } from '../middleware/errorHandler';
+import mongoose from 'mongoose';
+import { Order } from '../models/Order';
 
 // @desc    Get all products
 // @route   GET /api/products
 // @access  Private
 export const getProducts = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { isActive, lowStock } = req.query;
+  const { isActive, lowStock, categoryId } = req.query;
   
   let query: any = {};
   if (isActive !== undefined) {
@@ -17,6 +19,10 @@ export const getProducts = asyncHandler(async (req: AuthRequest, res: Response) 
   
   if (lowStock === 'true') {
     query.$expr = { $lte: ['$currentStock', '$minStockAlert'] };
+  }
+
+  if (categoryId) {
+    query.category = categoryId;
   }
 
   const products = await Product.find(query)
@@ -167,6 +173,13 @@ export const updateProduct = asyncHandler(async (req: AuthRequest, res: Response
     return res.status(404).json({ message: 'Product not found' });
   }
 
+  // Auto toggle discontinue if out of stock
+  if (product.currentStock === 0) {
+    if (product.isActive) product.isActive = false;
+    if (!product.isDiscontinued) product.isDiscontinued = true;
+    await product.save();
+  }
+
   res.json({
     success: true,
     product
@@ -233,10 +246,73 @@ export const adjustStock = asyncHandler(async (req: AuthRequest, res: Response) 
     createdBy: req.user!._id
   });
 
+  // Auto toggle discontinue if out of stock after adjustment
+  if (product.currentStock === 0) {
+    if (product.isActive) product.isActive = false;
+    if (!product.isDiscontinued) product.isDiscontinued = true;
+    await product.save();
+  }
+
   res.json({
     success: true,
     message: 'Stock adjusted successfully',
     product
+  });
+});
+
+// @desc    Get product statistics (sold quantity, revenue) within a period
+// @route   GET /api/products/:id/stats?mode=this_month|custom&month=MM&year=YYYY&startDate&endDate
+// @access  Private
+export const getProductStats = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  const { mode = 'this_month', month, year, startDate, endDate } = req.query as Record<string, string>;
+
+  // Ensure product exists
+  const exists = await Product.exists({ _id: id });
+  if (!exists) return res.status(404).json({ message: 'Product not found' });
+
+  // Resolve time range
+  let rangeStart: Date | undefined;
+  let rangeEnd: Date | undefined;
+
+  if (startDate || endDate) {
+    rangeStart = startDate ? new Date(startDate) : undefined;
+    rangeEnd = endDate ? new Date(endDate) : undefined;
+  } else if (mode === 'custom' && month && year) {
+    const y = Number(year);
+    const m = Number(month) - 1;
+    rangeStart = new Date(y, m, 1, 0, 0, 0, 0);
+    rangeEnd = new Date(y, m + 1, 0, 23, 59, 59, 999);
+  } else {
+    const now = new Date();
+    rangeStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    rangeEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  }
+
+  const createdAtMatch: any = {};
+  if (rangeStart) createdAtMatch.$gte = rangeStart;
+  if (rangeEnd) createdAtMatch.$lte = rangeEnd;
+
+  const agg = await Order.aggregate([
+    ...(rangeStart || rangeEnd ? [{ $match: { createdAt: createdAtMatch } }] : []),
+    { $unwind: '$items' },
+    { $match: { 'items.type': 'product', 'items.item': new mongoose.Types.ObjectId(id) } },
+    {
+      $group: {
+        _id: null,
+        totalRevenue: { $sum: '$items.totalPrice' },
+        totalSold: { $sum: '$items.quantity' }
+      }
+    }
+  ]);
+
+  res.json({
+    success: true,
+    stats: {
+      totalRevenue: agg[0]?.totalRevenue || 0,
+      totalSold: agg[0]?.totalSold || 0
+    },
+    range: { start: rangeStart, end: rangeEnd }
   });
 });
 

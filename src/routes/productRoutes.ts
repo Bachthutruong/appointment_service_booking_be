@@ -8,7 +8,8 @@ import {
   updateProduct,
   addStock,
   adjustStock,
-  deleteProduct
+  deleteProduct,
+  getProductStats
 } from '../controllers/productController';
 import { authenticate, adminOnly } from '../middleware/auth';
 
@@ -21,6 +22,7 @@ router.get('/', getProducts);
 router.get('/stock-movements', getAllStockMovements);
 router.get('/:id', getProduct);
 router.get('/:id/stock-history', getProductStockHistory);
+router.get('/:id/stats', getProductStats);
 router.post('/', adminOnly, createProduct);
 router.put('/:id', adminOnly, updateProduct);
 router.post('/:id/stock/add', adminOnly, addStock);

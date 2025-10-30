@@ -259,6 +259,11 @@ export const createOrder = asyncHandler(async (req: AuthRequest, res: Response) 
       if (product) {
         product.currentStock = Math.max(0, product.currentStock - item.quantity);
         await product.save();
+        if (product.currentStock === 0) {
+          if (product.isActive) product.isActive = false;
+          if (!product.isDiscontinued) product.isDiscontinued = true;
+          await product.save();
+        }
 
         // Create stock movement
         await StockMovement.create({
@@ -379,6 +384,11 @@ export const updateOrder = asyncHandler(async (req: AuthRequest, res: Response) 
       if (product) {
         product.currentStock = Math.max(0, product.currentStock - item.quantity);
         await product.save();
+        if (product.currentStock === 0) {
+          if (product.isActive) product.isActive = false;
+          if (!product.isDiscontinued) product.isDiscontinued = true;
+          await product.save();
+        }
 
         // Create stock movement
         await StockMovement.create({

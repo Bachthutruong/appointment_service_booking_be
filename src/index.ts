@@ -20,6 +20,7 @@ import reminderRoutes from './routes/reminderRoutes';
 import reportRoutes from './routes/reportRoutes';
 import categoryRoutes from './routes/categoryRoutes';
 import settingsRoutes from './routes/settingsRoutes';
+import reminderTemplateRoutes from './routes/reminderTemplateRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -49,7 +50,7 @@ app.use(cors({
 }));
 
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));git 
+app.use(express.json({ limit: '10mb' })); 
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve uploaded files
@@ -66,6 +67,7 @@ app.use('/api/reminders', reminderRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/reminder-templates', reminderTemplateRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

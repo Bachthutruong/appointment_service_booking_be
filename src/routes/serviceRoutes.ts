@@ -4,7 +4,8 @@ import {
   getService,
   createService,
   updateService,
-  deleteService
+  deleteService,
+  getServiceStats
 } from '../controllers/serviceController';
 import { authenticate, adminOnly } from '../middleware/auth';
 
@@ -14,6 +15,8 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', getServices);
+// Stats must be defined before the generic :id route
+router.get('/:id/stats', getServiceStats);
 router.get('/:id', getService);
 router.post('/', adminOnly, createService);
 router.put('/:id', adminOnly, updateService);
